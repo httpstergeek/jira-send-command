@@ -20,9 +20,11 @@ local.meta
 
 # Built files
 *.spl
+**/bin
+!*.py
+
 
 # Unknown
-.build
 *.orig.pre41
 
 ### Local Splunk files
