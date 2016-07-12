@@ -15,15 +15,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-__author__ = 'Bernardo Macias '
-__credits__ = ['Bernardo Macias']
-__license__ = "ASF"
-__version__ = "2.0"
-__maintainer__ = "Bernardo Macias"
-__email__ = 'bmacias@httpstergeek.com'
-__status__ = 'Production'
-
-
 
 
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -31,6 +22,7 @@ import app
 
 from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, Option, validators
 import sys
+import json
 
 
 @Configuration()
@@ -49,25 +41,30 @@ class JiraSendCommand(StreamingCommand):
     .. code-block::
         | inputlookup tweets | countmatches fieldname=word_count pattern="\\w+" text
     """
-    fields = Option(
+    fieldname = Option(
         doc='''
-        **Syntax:** **fieldname=***<fieldname1>,<fieldname1>*
-        **Description:** field names''',
+        **Syntax:** **fieldname=***<fieldname>*
+        **Description:** Name of the field that will hold the match count''',
         require=True, validate=validators.Fieldname())
 
-    project = Option(
+    pattern = Option(
         doc='''
-        **Syntax:** **project=***<jira-project>*
+        **Syntax:** **pattern=***<regular-expression>*
         **Description:** Regular expression pattern to match''',
-        require=False, validate=validators.String())
+        require=True, validate=validators.RegularExpression())
 
     def stream(self, records):
         self.logger.debug('CountMatchesCommand: %s', self)  # logs command line
-        project = self.project
-        fields = self.fields
+        pattern = self.pattern
+        searchinfo = self.metadata.searchinfo
+        session_key = searchinfo.session_key
+        splunkd_uri = searchinfo.splunkd_uri
         for record in records:
             count = 0L
-            # TODO add body
+            for fieldname in self.fieldnames:
+                matches = pattern.findall(unicode(record[fieldname].decode("utf-8")))
+                count += len(matches)
+            record[self.fieldname] = count
             yield record
 
 dispatch(JiraSendCommand, sys.argv, sys.stdin, sys.stdout, __name__)
