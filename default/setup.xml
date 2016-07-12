@@ -1,0 +1,20 @@
+<setup>
+  <block title="JIRA Send Command">
+    <text>Configure JIRA Alert Actions</text>
+  </block>
+
+  <block title="Server" endpoint="admin/jira_send_install" entity="jira">
+    <input field="jira_url">
+      <label>Server Base URL</label>
+      <type>text</type>
+    </input>
+    <input field="jira_username">
+      <label>JIRA Username</label>
+      <type>text</type>
+    </input>
+    <input field="jira_password">
+      <label>JIRA Password</label>
+      <type>password</type>
+    </input>
+  </block>
+</setup>
