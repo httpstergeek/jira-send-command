@@ -1,2 +1,7 @@
-[]
-access = read : [ * ], write : [ admin ]
+### COMMANDS
+[commands]
+export = system
+
+### SEARCHBNF
+[searchbnf]
+export = system
