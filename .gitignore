@@ -20,8 +20,9 @@ local.meta
 
 # Built files
 *.spl
-**/bin
-!*.py
+bin/requests
+bin/splunklib
+
 
 
 # Unknown
@@ -30,8 +31,8 @@ local.meta
 ### Local Splunk files
 local/*
 metadata/local.meta
-
-
+.jira-send-command
+fields
 ### Windows template
 # Windows image file caches
 ehthumbs.db
