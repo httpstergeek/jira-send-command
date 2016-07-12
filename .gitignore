@@ -22,7 +22,7 @@ local.meta
 *.spl
 bin/requests
 bin/splunklib
-
+*.iml
 
 
 # Unknown
