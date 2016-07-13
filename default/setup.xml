@@ -1,9 +1,9 @@
 <setup>
   <block title="JIRA Send Command">
-    <text>Configure JIRA Alert Actions</text>
+    <text>Configure JIRA Send Command</text>
   </block>
 
-  <block title="Server" endpoint="admin/jira_send_install" entity="jira">
+  <block title="Server" endpoint="admin/jira_send_install" entity="jirasend">
     <input field="jira_url">
       <label>Server Base URL</label>
       <type>text</type>
