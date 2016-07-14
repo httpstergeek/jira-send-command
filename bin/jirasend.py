@@ -20,9 +20,11 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import app
 
-from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, Option, validators
+from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, Option
 import sys
 import json
+import requests
+from helper import get_jira_password, get_jira_action_config
 
 
 @Configuration()
@@ -41,30 +43,71 @@ class JiraSendCommand(StreamingCommand):
     .. code-block::
         | inputlookup tweets | countmatches fieldname=word_count pattern="\\w+" text
     """
-    fieldname = Option(
+    fields = Option(
         doc='''
-        **Syntax:** **fieldname=***<fieldname>*
-        **Description:** Name of the field that will hold the match count''',
-        require=True, validate=validators.Fieldname())
+        **Syntax:** **fields=***<fieldname>*
+        **Description:** Comma seperated list of fields in results''',
+        require=False)
 
-    pattern = Option(
+    project = Option(
         doc='''
-        **Syntax:** **pattern=***<regular-expression>*
-        **Description:** Regular expression pattern to match''',
-        require=True, validate=validators.RegularExpression())
+        **Syntax:** **project=***<JIRA Project ID>*
+        **Description:** Project ID in Jira''',
+        require=True)
+
+    summary = Option(
+        doc='''
+        **Syntax:** **summary=***<string>*
+        **Description:** Text for Summary field''',
+        require=False)
+
+    description = Option(
+        doc='''
+        **Syntax:** **description=***<string>*
+        **Description:** Text for Description field''',
+        require=False)
+
+    issue_type = Option(
+        doc='''
+        **Syntax:** **pattern=***<Issue Type>*
+        **Description:** Jira Issue Type''',
+        require=False)
 
     def stream(self, records):
         self.logger.debug('CountMatchesCommand: %s', self)  # logs command line
-        pattern = self.pattern
         searchinfo = self.metadata.searchinfo
-        session_key = searchinfo.session_key
-        splunkd_uri = searchinfo.splunkd_uri
+        password = get_jira_password(searchinfo.splunkd_uri, searchinfo.session_key)
+        config = get_jira_action_config(searchinfo.splunkd_uri, searchinfo.session_key)
+        issue_type = self.issue_type if self.issue_type else "Task"
+
+        # create outbound JSON message body
+        fields = self.fields.split(',')
+
         for record in records:
-            count = 0L
-            for fieldname in self.fieldnames:
-                matches = pattern.findall(unicode(record[fieldname].decode("utf-8")))
-                count += len(matches)
-            record[self.fieldname] = count
+            body = {
+                "fields": {
+                    "project": {
+                        "key" : self.project
+                    },
+                    "summary": self.summary,
+                    "description": self.description,
+                    "issuetype": {
+                        "name": issue_type
+                    }
+                }
+            }
+            for field in fields:
+                if field in record:
+                    body['fields'][field] = record[field]
+
+            body = json.dumps(body)
+            try:
+                headers = {"Content-Type": "application/json"}
+                result = requests.post(url=config['jira_url'], data=body, headers=headers, auth=(config['jira_username'], password))
+            except Exception as e:
+                result = "Error: %s" % e
+                self.logger.error('Error: %s', self, e)
+            record['response'] = "%s" % result
             yield record
 
 dispatch(JiraSendCommand, sys.argv, sys.stdin, sys.stdout, __name__)
