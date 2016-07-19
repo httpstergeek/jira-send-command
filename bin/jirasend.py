@@ -79,9 +79,10 @@ class JiraSendCommand(StreamingCommand):
         password = get_jira_password(searchinfo.splunkd_uri, searchinfo.session_key)
         config = get_jira_action_config(searchinfo.splunkd_uri, searchinfo.session_key)
         issue_type = self.issue_type if self.issue_type else "Task"
-
+        ISSUE_REST_PATH = "/rest/api/latest/issue"
         # create outbound JSON message body
-        fields = self.fields.split(',')
+        if self.fields:
+            fields = self.fields.split(',')
 
         for record in records:
             body = {
@@ -96,18 +97,21 @@ class JiraSendCommand(StreamingCommand):
                     }
                 }
             }
-            for field in fields:
-                if field in record:
-                    body['fields'][field] = record[field]
+            if self.fields:
+                for field in fields:
+                    if field in record:
+                        body['fields'][field] = record[field]
 
             body = json.dumps(body)
             try:
                 headers = {"Content-Type": "application/json"}
-                result = requests.post(url=config['jira_url'], data=body, headers=headers, auth=(config['jira_username'], password))
+                result = requests.post(url=config['jira_url']+ISSUE_REST_PATH, data=body,
+                                       headers=headers, auth=(config['jira_username'], password))
             except Exception as e:
                 result = "Error: %s" % e
                 self.logger.error('Error: %s', self, e)
-            record['response'] = "%s" % result
+            record['status_code'] = "%s %s %s" % result.status_code
+            record['response'] = "%s" % result.text
             yield record
 
 dispatch(JiraSendCommand, sys.argv, sys.stdin, sys.stdout, __name__)
