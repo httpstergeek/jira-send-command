@@ -30,8 +30,6 @@ class JiraAlertsInstallHandler(admin.MConfigHandler):
                 password = self.callerArgs['jira_password'][0]
                 if password and password != PASSWORD_PLACEHOLDER:
                     jira_settings['jira_password'] = password
-            if not validate_jira_settings(jira_settings):
-                raise admin.ArgValidationException, "Error connecting to JIRA server"
             update_jira_settings(jira_settings, splunk.getLocalServerInfo(), self.getSessionKey())
 
 admin.init(JiraAlertsInstallHandler, admin.CONTEXT_APP_ONLY)
