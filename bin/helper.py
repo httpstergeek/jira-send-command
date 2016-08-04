@@ -118,7 +118,8 @@ class AppConf:
             if "credential" in entry['name']:
                 password_store = entry['name'].replace('credential::', '').strip(':')
                 break
-        return password_store
+        self.password_store = password_store
+        return self.password_store
 
     def _splunkd_auth_header(self):
         """
