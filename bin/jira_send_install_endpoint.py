@@ -14,7 +14,7 @@ class InstallHandler(admin.MConfigHandler):
 
     def handleList(self, confInfo):
         app_conf = AppConf(splunk.getLocalServerInfo(), self.getSessionKey())
-        config = app_conf.get_config('jirasend')
+        config = app_conf.get_config(self.callerArgs.id)
         settings = config['jirasend'] if 'jirasend' in config else {}
         item = confInfo['jirasend']
         item['jira_url'] = settings['jira_url'] if settings['jira_url'] else 'http://your.server/'
