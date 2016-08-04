@@ -5,3 +5,7 @@ export = system
 ### SEARCHBNF
 [searchbnf]
 export = system
+
+[passwords]
+export = system
+
