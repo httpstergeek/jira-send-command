@@ -112,7 +112,8 @@ class AppConf:
 
     def _password_store(self):
         """
-        returns password store definition from app.conf
+        Returns password store definition from app.conf.
+        Currently does not handle relm
         :return:
         """
         url = "%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app, '/properties/app?output_mode=json')
