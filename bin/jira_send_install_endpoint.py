@@ -27,13 +27,13 @@ class InstallHandler(admin.MConfigHandler):
             settings = app_conf.get_settings(self.callerArgs.id)
             settings[self.callerArgs.id] = {}
             if 'jira_url' in self.callerArgs:
-                settings['jira_url'] = self.callerArgs['jira_url'][0]
+                settings[self.callerArgs.id]['jira_url'] = self.callerArgs['jira_url'][0]
             if 'jira_username' in self.callerArgs:
-                settings['jira_username'] = self.callerArgs['jira_username'][0]
+                settings[self.callerArgs.id]['jira_username'] = self.callerArgs['jira_username'][0]
             if 'jira_password' in self.callerArgs:
                 password = self.callerArgs['jira_password'][0]
                 if password and password != PASSWORD_PLACEHOLDER:
-                    settings['jira_password'] = password
-            app_conf.update_settings(self.callerArgs, settings)
+                    settings[app_conf.password_store] = password
+            app_conf.update_settings(self.callerArgs.id, settings)
 
 admin.init(InstallHandler, admin.CONTEXT_APP_ONLY)

@@ -90,9 +90,10 @@ class AppConf:
                                 '/storage/passwords/%3A', self.password_store, '%3A?output_mode=json')
         try:
             result = requests.post(url=url,
-                                   data={'password': stanza_dict.pop(self.password_store)},
+                                   data={'password': stanza_dict[self.password_store]},
                                    headers=self._splunkd_auth_header(),
                                    verify=False)
+            stanza_dict.pop(self.password_store)
             if result.status_code != 200:
                 print >> sys.stderr, "ERROR Error: %s" % result.json()
         except Exception, e:
