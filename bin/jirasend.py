@@ -88,7 +88,7 @@ class JiraSendCommand(StreamingCommand):
             body = {
                 "fields": {
                     "project": {
-                        "key" : self.project
+                        "key": self.project
                     },
                     "summary": self.summary,
                     "description": self.description,
@@ -105,8 +105,8 @@ class JiraSendCommand(StreamingCommand):
             body = json.dumps(body)
             try:
                 headers = {"Content-Type": "application/json"}
-                result = requests.post(url=config['jira_url']+ISSUE_REST_PATH, data=body,
-                                       headers=headers, auth=(config['jira_username'], password))
+                result = requests.post(url=config['jirasend']['jira_url']+ISSUE_REST_PATH, data=body,
+                                       headers=headers, auth=(config['jirasend']['jira_username'], password))
             except Exception as e:
                 result = "Error: %s" % e
                 self.logger.error('Error: %s', self, e)
