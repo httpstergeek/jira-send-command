@@ -8,6 +8,10 @@ try:
 except Exception, e:
     print >> sys.stderr, "ERROR Loading splunk.clilib: %s" % e
 
+"""
+This class was created using the helpers.py file from jira-alerts created by Splunk's gmelnik
+"""
+
 
 class AppConf:
     def __init__(self, server_uri, session_key):
@@ -26,22 +30,21 @@ class AppConf:
         :param local: local config only
         :return: dictionary of dicts
         """
-        cli.getMergedConf()
         conf = "%s.conf" % conf
-        defaultconfpath = os.path.join(self.dir, "default", conf)
-        stanzaDict = cli.readConfFile(defaultconfpath) if os.path.exists(defaultconfpath) else {}
-        localconfpath = os.path.join(self.dir, "local", conf)
+        defaultconfpath = os.path.join(self.dir, 'default', conf)
+        stanza_dict = cli.readConfFile(defaultconfpath) if os.path.exists(defaultconfpath) else {}
+        localconfpath = os.path.join(self.dir, 'local', conf)
         if not local:
             if os.path.exists(localconfpath):
                 localconf = cli.readConfFile(localconfpath)
                 for setting, stanza in localconf.items():
-                    if setting in stanzaDict:
-                        stanzaDict[setting].update(stanza)
+                    if setting in stanza_dict:
+                        stanza_dict[setting].update(stanza)
                     else:
-                        stanzaDict[setting] = stanza
+                        stanza_dict[setting] = stanza
         else:
-            stanzaDict = cli.readConfFile(localconfpath) if os.path.exists(localconfpath) else {}
-        return stanzaDict
+            stanza_dict = cli.readConfFile(localconfpath) if os.path.exists(localconfpath) else {}
+        return stanza_dict
 
     def get_password(self):
         """
@@ -51,7 +54,7 @@ class AppConf:
         url = "%s%s%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app,
                                 '/storage/passwords/%3A', self.password_store, '%3A?output_mode=json')
         splunk_response = self._get_endpoint(url)
-        password = splunk_response.get("entry")[0].get("content").get("clear_password")
+        password = splunk_response.get('entry')[0].get('content').get('clear_password')
         return password
 
     def get_settings(self, conf):
@@ -64,30 +67,30 @@ class AppConf:
         results[self.password_store] = self.get_password()
         return results
 
-    def update_config(self, conf, stanzaDict):
+    def update_config(self, conf, stanza_dict):
         """
         Writes dictionary of dicts to local app context
         :param conf: Splunk conf file name
-        :param stanzaDict: dictionary of dicts
+        :param stanza_dict: dictionary of dicts
         :return: True
         """
         conf = "%s.conf" % conf
         localconfpath = os.path.join(self.dir, "local", conf)
-        cli.writeConfFile(localconfpath, stanzaDict)
+        cli.writeConfFile(localconfpath, stanza_dict)
         return True
 
-    def update_settings(self, conf, stanzaDict):
+    def update_settings(self, conf, stanza_dict):
         """
         Updates config file and password store.
         :param conf: Splunk conf file name
-        :param stanzaDict: dictionary of dicts
+        :param stanza_dict: dictionary of dicts
         :return:
         """
         url = "%s%s%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app,
                                 '/storage/passwords/%3A', self.password_store, '%3A?output_mode=json')
         try:
             result = requests.post(url=url,
-                                   data={'password': stanzaDict.pop(self.password_store)},
+                                   data={'password': stanza_dict.pop(self.password_store)},
                                    headers=self._splunkd_auth_header(),
                                    verify=False)
             if result.status_code != 200:
@@ -95,7 +98,7 @@ class AppConf:
         except Exception, e:
             print >> sys.stderr, "ERROR Error sending message: %s" % e
             return False
-        return self.update_config(conf, stanzaDict)
+        return self.update_config(conf, stanza_dict)
 
     def _get_appname(self):
         """
