@@ -1,69 +1,145 @@
 import sys
 import requests
 import json
+import os
+import platform
+try:
+    from splunk.clilib import cli_common as cli
+except Exception, e:
+    print >> sys.stderr, "ERROR Loading splunk.clilib: %s" % e
 
-def splunkd_auth_header(session_key):
-    return {'Authorization': 'Splunk ' + session_key}
+"""
+This class was created using the helpers.py file from jira-alerts created by Splunk's gmelnik
+"""
 
-def get_jira_settings(server_uri, session_key):
-    result = dict()
-    for k,v in get_jira_action_config(server_uri, session_key).items():
-        if k.startswith('jira'):
-            result[k] = v
-    result['jira_password'] = get_jira_password(server_uri, session_key)
-    return result
 
-def validate_jira_settings(jira_settings):
-    url = jira_url(jira_settings, '/myself')
-    requests.get(
-        url=url,
-        auth=(jira_settings.get('jira_username'), jira_settings.get('jira_password')),
-        verify=False,
-        timeout=10
-    ).json()
-    return True
+class AppConf:
+    def __init__(self, server_uri, session_key):
+        self.server_uri = server_uri
+        self.session_key = session_key
+        self.dir = os.path.dirname(os.path.dirname(__file__))
+        self.app = self._get_appname()
+        self.password_store = self._password_store()
 
-def update_jira_settings(jira_settings, server_uri, session_key):
-    r = requests.post(
-        url=server_uri+'/servicesNS/nobody/jira-send-command/configs/inputs/jirasend?output_mode=json',
-        data={
-            'jira_url': jira_settings.get('jira_url'),
-            'jira_username': jira_settings.get('jira_username')
-        },
-        headers=splunkd_auth_header(session_key),
-        verify=False).json()
-    requests.post(
-        url=server_uri + '/servicesNS/nobody/jira-send-command/storage/passwords/%3Ajirasend_password%3A?output_mode=json',
-        data={
-            'password': jira_settings.get('jira_password')
-        },
-        headers=splunkd_auth_header(session_key),
-        verify=False)
+    def get_config(self, conf, local=False):
+        """
+        Retrieves local or merged dictionary of dicts local app context.
+        This function creates parity for use with writeConfFile in splunk.clilib.
+        Should use cli.getMergedConf(), but does not support custom conf files.
+        :param conf:  Splunk conf file file name
+        :param local: local config only
+        :return: dictionary of dicts
+        """
+        conf = "%s.conf" % conf
+        defaultconfpath = os.path.join(self.dir, 'default', conf)
+        stanza_dict = cli.readConfFile(defaultconfpath) if os.path.exists(defaultconfpath) else {}
+        localconfpath = os.path.join(self.dir, 'local', conf)
+        if not local:
+            if os.path.exists(localconfpath):
+                localconf = cli.readConfFile(localconfpath)
+                for setting, stanza in localconf.items():
+                    if setting in stanza_dict:
+                        stanza_dict[setting].update(stanza)
+                    else:
+                        stanza_dict[setting] = stanza
+        else:
+            stanza_dict = cli.readConfFile(localconfpath) if os.path.exists(localconfpath) else {}
+        return stanza_dict
 
-def get_jira_password(server_uri, session_key):
-    password_url = server_uri + '/servicesNS/nobody/jira-send-command/storage/passwords/%3Ajirasend_password%3A?output_mode=json'
+    def get_password(self):
+        """
+        Retrives password from store in plain text
+        :return:
+        """
+        url = "%s%s%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app,
+                                '/storage/passwords/%3A', self.password_store, '%3A?output_mode=json')
+        splunk_response = self._get_endpoint(url)
+        password = splunk_response.get('entry')[0].get('content').get('clear_password')
+        return password
 
-    try:
-        # attempting to retrieve cleartext password, disabling SSL verification for practical reasons
-        result = requests.get(url=password_url, headers=splunkd_auth_header(session_key), verify=False)
-        if result.status_code != 200:
-            print >> sys.stderr, "ERROR Error: %s" % str(result.json())
-    except Exception, e:
-        print >> sys.stderr, "ERROR Error sending message: %s" % e
-        return False
+    def get_settings(self, conf):
+        """
+        Retrieves merged custom config file and password
+        :param conf:
+        :return:
+        """
+        results = self.get_config(conf, local=True)
+        results[self.password_store] = self.get_password()
+        return results
 
-    splunk_response = json.loads(result.text)
-    jira_password = splunk_response.get("entry")[0].get("content").get("clear_password")
+    def update_config(self, conf, stanza_dict):
+        """
+        Writes dictionary of dicts to local app context
+        :param conf: Splunk conf file name
+        :param stanza_dict: dictionary of dicts
+        :return: True
+        """
+        conf = "%s.conf" % conf
+        localconfpath = os.path.join(self.dir, "local", conf)
+        cli.writeConfFile(localconfpath, stanza_dict)
+        return True
 
-    return jira_password
+    def update_settings(self, conf, stanza_dict):
+        """
+        Updates config file and password store.
+        :param conf: Splunk conf file name
+        :param stanza_dict: dictionary of dicts
+        :return:
+        """
+        url = "%s%s%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app,
+                                '/storage/passwords/%3A', self.password_store, '%3A?output_mode=json')
+        try:
+            result = requests.post(url=url,
+                                   data={'password': stanza_dict[self.password_store]},
+                                   headers=self._splunkd_auth_header(),
+                                   verify=False)
+            stanza_dict.pop(self.password_store)
+            if result.status_code != 200:
+                print >> sys.stderr, "ERROR Error: %s" % result.json()
+        except Exception, e:
+            print >> sys.stderr, "ERROR Error sending message: %s" % e
+            return False
+        return self.update_config(conf, stanza_dict)
 
-def get_jira_username(server_uri, session_key):
-    return get_jira_action_config(server_uri, session_key).get('jira_username')
+    def _get_appname(self):
+        """
+        Returns current app context
+        :return:
+        """
+        splitby = '/' if not (platform.system() == 'Windows') else '\\'
+        app = self.dir.split(splitby)[-1]
+        return app
 
-def get_jira_action_config(server_uri, session_key):
-    url = server_uri + '/servicesNS/nobody/jira-send-command/configs/inputs/jirasend?output_mode=json'
-    result = requests.get(url=url, headers=splunkd_auth_header(session_key), verify=False)
-    return json.loads(result.text)['entry'][0]['content']
+    def _password_store(self):
+        """
+        Returns password store definition from app.conf.
+        Currently does not handle relm
+        :return:
+        """
+        url = "%s%s%s%s" % (self.server_uri, '/servicesNS/nobody/', self.app, '/properties/app?output_mode=json')
+        splunk_response = self._get_endpoint(url)
+        password_store = None
+        for entry in splunk_response['entry']:
+            if "credential" in entry['name']:
+                password_store = entry['name'].replace('credential::', '').strip(':')
+                break
+        self.password_store = password_store
+        return self.password_store
 
-def jira_url(jira_settings, endpoint):
-    return '%s/rest/api/latest%s' % (jira_settings.get('jira_url'), endpoint)
+    def _splunkd_auth_header(self):
+        """
+        Building dict for request headers
+        :return:
+        """
+        return {'Authorization': 'Splunk ' + self.session_key}
+
+    def _get_endpoint(self, url):
+        try:
+            # attempting to retrieve cleartext password, disabling SSL verification for practical reasons
+            result = requests.get(url=url, headers=self._splunkd_auth_header(), verify=False)
+            if result.status_code != 200:
+                print >> sys.stderr, "ERROR Error: %s" % str(result.json())
+        except Exception, e:
+            print >> sys.stderr, "ERROR Error sending message: %s" % e
+            return False
+        return json.loads(result.text)

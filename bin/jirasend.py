@@ -18,13 +18,12 @@
 
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import app
 
 from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, Option
 import sys
 import json
 import requests
-from helper import get_jira_password, get_jira_action_config
+from helper import *
 
 
 @Configuration()
@@ -76,8 +75,9 @@ class JiraSendCommand(StreamingCommand):
     def stream(self, records):
         self.logger.debug('CountMatchesCommand: %s', self)  # logs command line
         searchinfo = self.metadata.searchinfo
-        password = get_jira_password(searchinfo.splunkd_uri, searchinfo.session_key)
-        config = get_jira_action_config(searchinfo.splunkd_uri, searchinfo.session_key)
+        app_conf = AppConf(searchinfo.splunkd_uri, searchinfo.session_key)
+        password = app_conf.get_password()
+        config = app_conf.get_config('jirasend')
         issue_type = self.issue_type if self.issue_type else "Task"
         ISSUE_REST_PATH = "/rest/api/latest/issue"
         # create outbound JSON message body
@@ -88,7 +88,7 @@ class JiraSendCommand(StreamingCommand):
             body = {
                 "fields": {
                     "project": {
-                        "key" : self.project
+                        "key": self.project
                     },
                     "summary": self.summary,
                     "description": self.description,
@@ -105,8 +105,8 @@ class JiraSendCommand(StreamingCommand):
             body = json.dumps(body)
             try:
                 headers = {"Content-Type": "application/json"}
-                result = requests.post(url=config['jira_url']+ISSUE_REST_PATH, data=body,
-                                       headers=headers, auth=(config['jira_username'], password))
+                result = requests.post(url=config['jirasend']['jira_url']+ISSUE_REST_PATH, data=body,
+                                       headers=headers, auth=(config['jirasend']['jira_username'], password))
             except Exception as e:
                 result = "Error: %s" % e
                 self.logger.error('Error: %s', self, e)
