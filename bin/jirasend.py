@@ -23,6 +23,7 @@ from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, 
 import sys
 import json
 import requests
+import splunk.admin as admin
 from helper import *
 
 
@@ -76,7 +77,7 @@ class JiraSendCommand(StreamingCommand):
         self.logger.debug('CountMatchesCommand: %s', self)  # logs command line
         searchinfo = self.metadata.searchinfo
         app_conf = AppConf(searchinfo.splunkd_uri, searchinfo.session_key)
-        password = app_conf.get_password()
+        # password = app_conf.get_password()
         config = app_conf.get_config('jirasend')
         issue_type = self.issue_type if self.issue_type else "Task"
         ISSUE_REST_PATH = "/rest/api/latest/issue"
@@ -106,11 +107,11 @@ class JiraSendCommand(StreamingCommand):
             try:
                 headers = {"Content-Type": "application/json"}
                 result = requests.post(url=config['jirasend']['jira_url']+ISSUE_REST_PATH, data=body,
-                                       headers=headers, auth=(config['jirasend']['jira_username'], password))
+                                       headers=headers, auth=(config['jirasend']['jira_username'], config['jirasend']['password']))
             except Exception as e:
                 result = "Error: %s" % e
                 self.logger.error('Error: %s', self, e)
-            record['status_code'] = "%s %s %s" % result.status_code
+            record['status_code'] = "%s" % result.status_code
             record['response'] = "%s" % result.text
             yield record
 
