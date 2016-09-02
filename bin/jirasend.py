@@ -21,13 +21,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from splunklib.searchcommands import dispatch, StreamingCommand, Configuration, Option
 import sys
-import json
-import requests
-import splunk.admin as admin
 from helper import *
 
 
-@Configuration()
+@Configuration(local=True)
 class JiraSendCommand(StreamingCommand):
     """ Counts the number of non-overlapping matches to a regular expression in a set of fields.
     ##Syntax
@@ -114,5 +111,6 @@ class JiraSendCommand(StreamingCommand):
             record['status_code'] = "%s" % result.status_code
             record['response'] = "%s" % result.text
             yield record
+
 
 dispatch(JiraSendCommand, sys.argv, sys.stdin, sys.stdout, __name__)
