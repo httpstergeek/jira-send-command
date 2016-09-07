@@ -73,10 +73,10 @@ class JiraSendCommand(StreamingCommand):
     def stream(self, records):
         self.logger.debug('CountMatchesCommand: %s', self)  # logs command line
         searchinfo = self.metadata.searchinfo
-        app_conf = AppConf(searchinfo.splunkd_uri, searchinfo.session_key)
+        #app_conf = AppConf(searchinfo.splunkd_uri, searchinfo.session_key)
         # password = app_conf.get_password()
-        config = app_conf.get_config('jirasend')
-        issue_type = self.issue_type if self.issue_type else "Task"
+        #config = app_conf.get_config('jirasend')
+        #issue_type = self.issue_type if self.issue_type else "Task"
         ISSUE_REST_PATH = "/rest/api/latest/issue"
         # create outbound JSON message body
         if self.fields:
@@ -91,7 +91,7 @@ class JiraSendCommand(StreamingCommand):
                     "summary": self.summary,
                     "description": self.description,
                     "issuetype": {
-                        "name": issue_type
+                        "name": self.issue_type
                     }
                 }
             }
@@ -103,13 +103,14 @@ class JiraSendCommand(StreamingCommand):
             body = json.dumps(body)
             try:
                 headers = {"Content-Type": "application/json"}
-                result = requests.post(url=config['jirasend']['jira_url']+ISSUE_REST_PATH, data=body,
-                                       headers=headers, auth=(config['jirasend']['jira_username'], config['jirasend']['password']))
+                #result = requests.post(url=config['jirasend']['jira_url']+ISSUE_REST_PATH, data=body,
+                 #                      headers=headers, auth=(config['jirasend']['jira_username'], config['jirasend']['password']))
             except Exception as e:
                 result = "Error: %s" % e
                 self.logger.error('Error: %s', self, e)
-            record['status_code'] = "%s" % result.status_code
-            record['response'] = "%s" % result.text
+            #record['status_code'] = "%s" % result.status_code
+            #record['response'] = "%s" % result.text
+            record['meta'] = "%s" % self.metadata.searchinfo
             yield record
 
 
